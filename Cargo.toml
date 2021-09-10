@@ -1,0 +1,10 @@
+[package]
+name = "late_init"
+version = "0.1.0"
+edition = "2018"
+
+[workspace]
+members = ["late_init_d"]
+
+[dependencies]
+late_init_d.path = "./late_init_d"
