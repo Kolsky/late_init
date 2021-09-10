@@ -93,7 +93,7 @@ pub fn late_init(input: TokenStream) -> TokenStream {
             #[allow(non_upper_case_globals)]
             pub(in super) struct #late_init_ident #late_init_generics(::core::mem::MaybeUninit<#ident #generics>);
 
-            impl #generics ::core::default::Default for #late_init_ident<#(#types,)* #(#late_init_consts_default,)*> {
+            impl #generics ::core::default::Default for #late_init_ident<#(#lifetimes,)* #(#types,)* #(#late_init_consts_default,)*> {
                 fn default() -> Self {
                     Self(::core::mem::MaybeUninit::uninit())
                 }
