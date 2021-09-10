@@ -94,7 +94,6 @@ pub fn late_init(input: TokenStream) -> TokenStream {
             }
         }
 
-
         #[allow(non_upper_case_globals)]
         impl #late_init_generics #late_init_ident<#(#lifetimes,)* #(#types,)* #(#late_init_consts,)*> {
             #(#fns)*
