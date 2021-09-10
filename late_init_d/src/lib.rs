@@ -22,10 +22,12 @@ pub fn late_init(input: TokenStream) -> TokenStream {
     let late_init_ident = format_ident!("{}LateInit", ident);
     let late_init_ident_mod = format_ident!("{}Mod", late_init_ident);
     let mut late_init_generics = generics.clone();
+    let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
     let late_init_consts_default: Vec<syn::LitBool> =
         vec![syn::parse_quote!(false); data.fields.len()];
     let lifetimes: Vec<_> = generics.lifetimes().map(|l| l.lifetime.clone()).collect();
     let types: Vec<_> = generics.type_params().map(|tp| tp.ident.clone()).collect();
+    let consts: Vec<_> = generics.const_params().map(|cp| cp.ident.clone()).collect();
     let mut late_init_consts = vec![];
     let mut init: Vec<syn::Expr> = vec![];
     data.fields.iter().enumerate().for_each(|(i, f)| {
@@ -76,7 +78,7 @@ pub fn late_init(input: TokenStream) -> TokenStream {
         );
         let ty = &f.ty;
         quote! {
-            pub fn #name(mut self, val: #ty) -> #late_init_ident<#(#lifetimes,)* #(#types,)* #(#cl,)* true, #(#cr,)*>
+            pub fn #name(mut self, val: #ty) -> #late_init_ident<#(#lifetimes,)* #(#types,)* #(#consts,)* #(#cl,)* true, #(#cr,)*>
             where
                 late_init::markers::InitSt<#ty, #ci>: late_init::markers::Uninit,
             {
@@ -95,19 +97,19 @@ pub fn late_init(input: TokenStream) -> TokenStream {
         {
             use super::*;
             #[allow(non_upper_case_globals)]
-            pub(in super) struct #late_init_ident #late_init_generics(::core::mem::MaybeUninit<#ident #generics>);
+            pub(in super) struct #late_init_ident #late_init_generics(::core::mem::MaybeUninit<#ident #type_generics>) #where_clause;
 
-            impl #generics ::core::default::Default for #late_init_ident<#(#lifetimes,)* #(#types,)* #(#late_init_consts_default,)*> {
+            impl #impl_generics ::core::default::Default for #late_init_ident<#(#lifetimes,)* #(#types,)* #(#consts,)* #(#late_init_consts_default,)*> #where_clause {
                 fn default() -> Self {
                     Self(::core::mem::MaybeUninit::uninit())
                 }
             }
 
             #[allow(non_upper_case_globals)]
-            impl #late_init_generics #late_init_ident<#(#lifetimes,)* #(#types,)* #(#late_init_consts,)*> {
+            impl #late_init_generics #late_init_ident<#(#lifetimes,)* #(#types,)* #(#consts,)* #(#late_init_consts,)*> #where_clause {
                 #(#fns)*
 
-                pub fn finish(mut self) -> #ident #generics
+                pub fn finish(mut self) -> #ident #type_generics
                 where
                     #(late_init::markers::InitSt<#field_types, #late_init_consts>: late_init::markers::AutoInit,)*
                 {
