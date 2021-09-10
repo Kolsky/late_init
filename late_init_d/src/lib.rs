@@ -6,7 +6,7 @@ use syn::Data;
 pub fn late_init(input: TokenStream) -> TokenStream {
     let syn::DeriveInput {
         ident,
-        generics,
+        mut generics,
         data,
         ..
     } = syn::parse_macro_input!(input);
@@ -15,6 +15,10 @@ pub fn late_init(input: TokenStream) -> TokenStream {
         Data::Enum(_) => panic!("enums are not supported"),
         Data::Union(_) => panic!("unions are not supported"),
     };
+    generics.type_params_mut().for_each(|tp| {
+        tp.eq_token = None;
+        tp.default = None;
+    });
     let late_init_ident = format_ident!("{}LateInit", ident);
     let late_init_ident_mod = format_ident!("{}Mod", late_init_ident);
     let mut late_init_generics = generics.clone();
