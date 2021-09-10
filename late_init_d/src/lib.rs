@@ -16,6 +16,7 @@ pub fn late_init(input: TokenStream) -> TokenStream {
         Data::Union(_) => panic!("unions are not supported"),
     };
     let late_init_ident = format_ident!("{}LateInit", ident);
+    let late_init_ident_mod = format_ident!("{}Mod", late_init_ident);
     let mut late_init_generics = generics.clone();
     let late_init_consts_default: Vec<syn::LitBool> =
         vec![syn::parse_quote!(false); data.fields.len()];
@@ -71,7 +72,7 @@ pub fn late_init(input: TokenStream) -> TokenStream {
         );
         let ty = &f.ty;
         quote! {
-            fn #name(mut self, val: #ty) -> #late_init_ident<#(#lifetimes,)* #(#types,)* #(#cl,)* true, #(#cr,)*>
+            pub fn #name(mut self, val: #ty) -> #late_init_ident<#(#lifetimes,)* #(#types,)* #(#cl,)* true, #(#cr,)*>
             where
                 late_init::markers::InitSt<#ty, #ci>: late_init::markers::Uninit,
             {
@@ -85,29 +86,35 @@ pub fn late_init(input: TokenStream) -> TokenStream {
     let field_types = data.fields.iter().map(|f| &f.ty);
 
     let output = quote! {
-        #[allow(non_upper_case_globals)]
-        struct #late_init_ident #late_init_generics(::core::mem::MaybeUninit<#ident #generics>);
+        #[allow(non_snake_case)]
+        mod #late_init_ident_mod
+        {
+            use super::*;
+            #[allow(non_upper_case_globals)]
+            pub(in super) struct #late_init_ident #late_init_generics(::core::mem::MaybeUninit<#ident #generics>);
 
-        impl #generics ::core::default::Default for #late_init_ident<#(#types,)* #(#late_init_consts_default,)*> {
-            fn default() -> Self {
-                Self(::core::mem::MaybeUninit::uninit())
+            impl #generics ::core::default::Default for #late_init_ident<#(#types,)* #(#late_init_consts_default,)*> {
+                fn default() -> Self {
+                    Self(::core::mem::MaybeUninit::uninit())
+                }
+            }
+
+            #[allow(non_upper_case_globals)]
+            impl #late_init_generics #late_init_ident<#(#lifetimes,)* #(#types,)* #(#late_init_consts,)*> {
+                #(#fns)*
+
+                pub fn finish(mut self) -> #ident #generics
+                where
+                    #(late_init::markers::InitSt<#field_types, #late_init_consts>: late_init::markers::AutoInit,)*
+                {
+                    use late_init::markers::*;
+                    let t = self.0.as_mut_ptr();
+                    #(#init)*
+                    unsafe { self.0.assume_init() }
+                }
             }
         }
-
-        #[allow(non_upper_case_globals)]
-        impl #late_init_generics #late_init_ident<#(#lifetimes,)* #(#types,)* #(#late_init_consts,)*> {
-            #(#fns)*
-
-            fn finish(mut self) -> #ident #generics
-            where
-                #(late_init::markers::InitSt<#field_types, #late_init_consts>: late_init::markers::AutoInit,)*
-            {
-                use late_init::markers::*;
-                let t = self.0.as_mut_ptr();
-                #(#init)*
-                unsafe { self.0.assume_init() }
-            }
-        }
+        use #late_init_ident_mod::#late_init_ident;
     };
     output.into()
 }
