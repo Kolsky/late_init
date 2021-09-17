@@ -174,8 +174,8 @@ fn auto_init(
 ) -> syn::Expr {
     fn auto_init_any(field: impl ToTokens, const_name: &syn::Ident) -> syn::Expr {
         syn::parse_quote!(unsafe {
-            let t = ::core::ptr::addr_of_mut!((*t).#field) as *mut _;
-            InitSt::<_, #const_name>(::core::marker::PhantomData).init(t);
+            let t = ::core::ptr::addr_of_mut!((*t).#field);
+            InitSt::<_, #const_name>(t).init();
         })
     }
     field_name.map_or_else(
